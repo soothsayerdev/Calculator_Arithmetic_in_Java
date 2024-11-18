@@ -1,7 +1,4 @@
-# Calculadora Aritmética em Java
-
-INTEGRANTES: 
-""" DIOGO LOURENCO ANDRADE / RA 23513 """
+# ** Calculadora Aritmética em Java **
 
 Este projeto implementa uma calculadora aritmética capaz de processar expressões matemáticas em notação infixa e calcular seus resultados. Utilizando conceitos de estruturas de dados, como filas e pilhas circulares, o programa converte expressões para notação pós-fixa (RPN - Reverse Polish Notation) e realiza cálculos de forma eficiente.
 
@@ -110,7 +107,8 @@ Erro: Operador inesperado: *
 
 ---
 
-## **👨‍💻 Autor**
+## **👨‍💻 Autor** 
+""" *DIOGO LOURENCO ANDRADE / RA 23513* """
 Desenvolvido como parte de um projeto de estudo em Java, com foco em algoritmos, estruturas de dados e manipulação de expressões matemáticas.
 
 **Vamos calcular?** 💻✨
