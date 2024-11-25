@@ -1,99 +1,127 @@
-import java.util.StringTokenizer;
-import java.util.regex.Pattern;
-
 public class ExpressionConverter {
-    private final CircularStack operatorStack; // Pilha para armazenar operadores
-    private final CircularQueue outputQueue;   // Fila para armazenar a saída em notação pós-fixa
-    private final String[] tokens;          // Tokens da expressão de entrada
+    private final String expression;
 
-    // Construtor que inicializa as estruturas e divide a expressão em tokens
-    public ExpressionConverter(String expression) throws Exception {
-        tokens = tokenizeExpression(expression); // Divide a expressão em partes
-        int capacity = tokens.length; // Determina a capacidade necessária para as estruturas
-        operatorStack = new CircularStack(capacity); // Inicializa a pilha
-        outputQueue = new CircularQueue(capacity);   // Inicializa a fila
+    public ExpressionConverter(String expression) throws IllegalArgumentException {
+        if (expression.isBlank()) throw new IllegalArgumentException("Expressão vazia! Forneça uma expressão válida.");
+        this.expression = expression;
     }
 
-    // Método que verifica precedência entre operadores
-    private static boolean hasHigherPrecedence(String top, String current) {
-        // Define precedência dos operadores
-        int topPrecedence = getPrecedence(top);
-        int currentPrecedence = getPrecedence(current);
+    public LinkedListQueue<CharSequence> toPostfix() {
+        validate();
 
-        // Operadores no topo da pilha têm maior ou igual precedência que o operador atual
-        return topPrecedence >= currentPrecedence;
-    }
+        LinkedListQueue<CharSequence> outputQueue = new LinkedListQueue<>();  // Fila para a expressão pós-fixa
+        LinkedListStack<CharSequence> operatorStack = new LinkedListStack<>(); // Pilha para os operadores
 
-    // Retorna o nível de precedência dos operadores
-    private static int getPrecedence(String operator) {
-        return switch (operator) {
-            case "^" -> 3; // Potência
-            case "*", "/" -> 2; // Multiplicação e divisão
-            case "+", "-" -> 1; // Soma e subtração
-            default -> 0; // Qualquer outro caso (por exemplo, parênteses)
-        };
-    }
+        for (int i = 0; i < expression.length(); i++) {
+            char currentChar = expression.charAt(i);
 
-    // Divide a expressão em tokens (números, operadores, parênteses)
-    private static String[] tokenizeExpression(String expression) {
-        String cleanedExpression = expression.replaceAll("\\s+", ""); // Remove espaços
-        StringTokenizer tokenizer = new StringTokenizer(cleanedExpression, "+-*/^()", true);
-        String[] result = new String[cleanedExpression.length()];
-
-        int index = 0;
-        while (tokenizer.hasMoreTokens()) {
-            result[index++] = tokenizer.nextToken();
-        }
-
-        return result;
-    }
-
-    // Método que converte a expressão para a notação pós-fixa (RPN)
-    public CircularQueue toPostfix() throws Exception {
-        Pattern numberPattern = Pattern.compile("\\d+"); // Reconhece números
-        Pattern operatorPattern = Pattern.compile("[+\\-*/^]"); // Reconhece operadores
-
-        for (String token : tokens) {
-            if (token == null) break;
-
-            // Caso o token seja um número, adiciona diretamente na fila de saída
-            if (numberPattern.matcher(token).matches()) {
-                outputQueue.enqueue(token);
+            // Ignorar espaços em branco
+            if (Character.isWhitespace(currentChar)) {
                 continue;
             }
 
-            // Caso o token seja um operador
-            if (operatorPattern.matcher(token).matches()) {
-                // Enquanto o topo da pilha tiver operadores de maior ou igual precedência,
-                // move-os para a fila de saída
-                while (!operatorStack.isEmpty() && hasHigherPrecedence(operatorStack.peek(), token)) {
+            // Se o caractere for um número (operando), adicione à fila
+            if (Character.isDigit(currentChar) || currentChar == '.') {
+                StringBuilder operand = new StringBuilder();
+                // Lê o número completo, incluindo decimais
+                while (i < expression.length() && (Character.isDigit(expression.charAt(i)) || expression.charAt(i) == '.')) {
+                    operand.append(expression.charAt(i));
+                    i++;
+                }
+                i--; // Compensa o incremento extra do loop
+                outputQueue.enqueue(operand.toString());
+            }
+            // Se o caractere for um operador
+            else if (isOperator(currentChar)) {
+                while (!operatorStack.isEmpty() && precedence(operatorStack.getTop().charAt(0)) >= precedence(currentChar)) {
                     outputQueue.enqueue(operatorStack.pop());
                 }
-                operatorStack.push(token); // Adiciona o operador atual na pilha
-                continue;
+                operatorStack.push(String.valueOf(currentChar));
             }
-
-            // Caso o token seja um parêntese de abertura
-            if (token.equals("(")) {
-                operatorStack.push(token); // Apenas coloca na pilha
-                continue;
+            // Se o caractere for um parêntese de abertura
+            else if (currentChar == '(') {
+                operatorStack.push(String.valueOf(currentChar));
             }
-
-            // Caso o token seja um parêntese de fechamento
-            if (token.equals(")")) {
-                // Move operadores para a fila de saída até encontrar o parêntese de abertura
-                while (!operatorStack.peek().equals("(")) {
+            // Se o caractere for um parêntese de fechamento
+            else if (currentChar == ')') {
+                while (!operatorStack.isEmpty() && operatorStack.getTop().charAt(0) != '(') {
                     outputQueue.enqueue(operatorStack.pop());
+                }
+                if (operatorStack.isEmpty() || operatorStack.getTop().charAt(0) != '(') {
+                    throw new IllegalArgumentException("Parênteses não balanceados!");
                 }
                 operatorStack.pop(); // Remove o parêntese de abertura da pilha
             }
         }
 
-        // Após processar todos os tokens, esvazia a pilha de operadores na fila de saída
+        // Desempilhar os operadores restantes
         while (!operatorStack.isEmpty()) {
             outputQueue.enqueue(operatorStack.pop());
         }
 
-        return outputQueue; // Retorna a fila com a expressão em notação pós-fixa
+        return outputQueue;
+    }
+
+    // Método auxiliar para verificar se o caractere é um operador
+    private boolean isOperator(char c) {
+        return c == '+' || c == '-' || c == '*' || c == '/' || c == '^';
+    }
+
+    // Método auxiliar para definir a precedência dos operadores
+    private int precedence(char operator) {
+        switch (operator) {
+            case '+':
+            case '-':
+                return 1;
+            case '*':
+            case '/':
+                return 2;
+            case '^':
+                return 3;
+            default:
+                return 0;
+        }
+    }
+
+    public void validate() {
+        if (containsInvalidCharacters()) {
+            throw new IllegalArgumentException("Valor e/ou operador inválidos!");
+        }
+        if (hasConsecutiveOperators()) {
+            throw new IllegalArgumentException("A expressão não pode conter um operador seguido de outro!");
+        }
+        if (startsOrEndsWithArithmeticOperator()) {
+            throw new IllegalArgumentException("A expressão não pode iniciar/terminar com um operador!");
+        }
+        if (!areParenthesesCorrectlyEnclosedAndBalanced()) {
+            throw new IllegalArgumentException("Os parênteses na expressão não estão corretamente balanceados e/ou fechados!");
+        }
+    }
+
+    private boolean containsInvalidCharacters() {
+        return !expression.matches("^(\\s*[0-9]+(\\.[0-9]*)?|\\s*\\.[0-9]+|[+\\-*/^()\\s])*\\s*$");
+    }
+
+    private boolean hasConsecutiveOperators() {
+        return expression.matches(".*[+\\-*/^]\\s*[+\\-*/^].*");
+    }
+
+    private boolean startsOrEndsWithArithmeticOperator() {
+        return expression.matches("^[+\\-*/^].*") || expression.matches(".*[+\\-*/^]$");
+    }
+
+    private boolean areParenthesesCorrectlyEnclosedAndBalanced() {
+        int balance = 0;
+        for (char c : expression.toCharArray()) {
+            if (c == '(') {
+                balance++;
+            } else if (c == ')') {
+                balance--;
+                if (balance < 0) {
+                    return false;
+                }
+            }
+        }
+        return balance == 0;
     }
 }
